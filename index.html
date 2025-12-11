@@ -2685,12 +2685,12 @@
 
 
         // ========== CONFIGURATION ==========
-        const SUPABASE_URL = 'https://dqsyfbhvbdtzteapjexq.supabase.co';      // e.g., https://xyz.supabase.co
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxc3lmYmh2YmR0enRlYXBqZXhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU0NzY1MTYsImV4cCI6MjA4MTA1MjUxNn0.D3zaLWSVdntksUu8b4KEmkS6fI6Z15101CFGB6ECDJs';      // e.g., eyJ...
+        const SUPABASE_URL = 'https://dqsyfbhvbdtzteapjexq.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxc3lmYmh2YmR0enRlYXBqZXhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU0NzY1MTYsImV4cCI6MjA4MTA1MjUxNn0.D3zaLWSVdntksUu8b4KEmkS6fI6Z15101CFGB6ECDJs';
         const ADMIN_PASSWORD = 'GecKaimur@148';
         let currentUser = null;
 
-        // Branch Mapping (keep this!)
+        // Branch Mapping
         const branchMap = {
             '101': 'Civil',
             '102': 'Mechanical',
@@ -2700,11 +2700,15 @@
             '156': 'CSE(Networks)'
         };
 
-        // ========== SUPABASE FUNCTIONS (REPLACE IndexedDB) ==========
+        // Filter variables
+        let activeStudentFilter = { year: 'all', semester: null, branch: 'all' };
+        let activeClassFilter = { year: 'all', semester: null };
+        let selectedStudentIds = new Set();
+        let displayedStudents = [];
 
-        // REMOVE initDB() completely - we don't need it!
+        // ========== SUPABASE FUNCTIONS ==========
 
-        // Replace addRecord()
+        // Add record to Supabase
         async function addRecord(table, data) {
             try {
                 // Add timestamp if not present
@@ -2724,20 +2728,27 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Failed to add: ${response.status}`);
+                    const error = await response.text();
+                    console.error(`Supabase add error for table ${table}:`, error);
+                    throw new Error(`Failed to add to ${table}: ${response.status}`);
                 }
 
                 const result = await response.json();
-                return result[0]; // Return created record
+                return result[0];
             } catch (error) {
                 console.error('Supabase add error:', error);
+                showToast(`Error adding record to ${table}`, 'error');
                 throw error;
             }
         }
 
-        // Replace updateRecord()
+        // Update record in Supabase
         async function updateRecord(table, data) {
             try {
+                if (!data.id) {
+                    throw new Error('ID is required for update');
+                }
+
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${data.id}`, {
                     method: 'PATCH',
                     headers: {
@@ -2757,11 +2768,12 @@
                 return result[0];
             } catch (error) {
                 console.error('Supabase update error:', error);
+                showToast(`Error updating record in ${table}`, 'error');
                 throw error;
             }
         }
 
-        // Replace getAll()
+        // Get all records from Supabase
         async function getAll(table) {
             try {
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*`, {
@@ -2773,18 +2785,20 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Failed to fetch: ${response.status}`);
+                    throw new Error(`Failed to fetch from ${table}: ${response.status}`);
                 }
 
-                return await response.json();
+                const data = await response.json();
+                console.log(`Loaded ${data.length} records from ${table}`);
+                return data;
             } catch (error) {
-                console.error('Supabase get error:', error);
-                showToast('Error loading data. Check connection.', 'error');
+                console.error(`Supabase get all error for ${table}:`, error);
+                showToast(`Error loading data from ${table}`, 'error');
                 return [];
             }
         }
 
-        // Replace getRecord()
+        // Get single record from Supabase
         async function getRecord(table, id) {
             try {
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
@@ -2803,11 +2817,12 @@
                 return result[0] || null;
             } catch (error) {
                 console.error('Supabase getRecord error:', error);
+                showToast('Error loading record', 'error');
                 return null;
             }
         }
 
-        // Replace deleteRecord()
+        // Delete record from Supabase
         async function deleteRecord(table, id) {
             try {
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
@@ -2818,14 +2833,19 @@
                     }
                 });
 
-                return response.ok;
+                if (!response.ok) {
+                    throw new Error(`Failed to delete: ${response.status}`);
+                }
+
+                return true;
             } catch (error) {
                 console.error('Supabase delete error:', error);
+                showToast('Error deleting record', 'error');
                 throw error;
             }
         }
 
-        // Replace clearStore()
+        // Clear all records from a table in Supabase
         async function clearStore(table) {
             try {
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
@@ -2839,8 +2859,62 @@
                 return response.ok;
             } catch (error) {
                 console.error('Supabase clear error:', error);
+                showToast('Error clearing data', 'error');
                 throw error;
             }
+        }
+        // Add this function to test Supabase connection
+        async function testSupabaseConnection() {
+            try {
+                console.log('Testing Supabase connection...');
+
+                // Test each table
+                const tables = ['students', 'faculty', 'classes', 'attendance', 'years', 'settings'];
+
+                for (const table of tables) {
+                    try {
+                        const data = await getAll(table);
+                        console.log(`Table ${table}: ${data.length} records`);
+                    } catch (error) {
+                        console.error(`Error accessing ${table}:`, error.message);
+                    }
+                }
+
+                // Test adding a test record
+                const testRecord = {
+                    roll_no: 'TEST001',
+                    first_name: 'Test',
+                    last_name: 'Student',
+                    email: 'test@example.com',
+                    department: 'Computer Science',
+                    year: 1,
+                    semester: 1
+                };
+
+                const added = await addRecord('students', testRecord);
+                console.log('Test add successful:', added);
+
+                if (added && added.id) {
+                    await deleteRecord('students', added.id);
+                    console.log('Test cleanup successful');
+                }
+
+                showToast('Supabase connection test completed', 'success');
+            } catch (error) {
+                console.error('Supabase connection test failed:', error);
+                showToast(`Connection test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Call this function after login to test
+        // Add to your completeLogin function:
+        function completeLogin(role, userData) {
+            // ... existing code ...
+
+            // Test connection (optional, remove after testing)
+            setTimeout(() => {
+                testSupabaseConnection();
+            }, 1000);
         }
 
         // ========== KEEP EVERYTHING ELSE BELOW ==========
