@@ -2685,17 +2685,40 @@
 
 
         
-        // Global variables initialization
-        let db; // IndexedDB database
+        // ========== COMPLETE CONFIGURATION ==========
+
+        // Global database reference
+        let db = null;
+
+        // User state
         let currentUser = null;
-        let ADMIN_PASSWORD = 'admin123'; // ⚠️ CHANGE THIS TO A SECURE PASSWORD
-        let activeStudentFilter = 'all'; // Filter state for students
-        let activeYear = new Date().getFullYear(); // Current academic year
+        let ADMIN_PASSWORD = 'admin123';
+
+        // Filter states
+        let activeStudentFilter = 'all';
+        let activeYear = new Date().getFullYear();
+        let activeMonthFilter = null;
+
+        // Pagination
         let currentPage = 1;
         const itemsPerPage = 10;
-        let selectedStudentIds = []; // Track selected students for bulk operations
-        let currentModal = null; // Track currently open modal
-        let openedModals = {}; // Store modal states
+
+        // Modal states
+        let selectedStudentIds = [];
+        let currentModal = null;
+        let openedModals = {};
+
+        // Data arrays (CRITICAL - these were null/undefined)
+        let allStudents = [];           // ← MUST be array, not null
+        let allFaculty = [];            // ← MUST be array, not null
+        let allClasses = [];            // ← MUST be array, not null
+        let allAttendance = [];         // ← MUST be array, not null
+
+        // Other states
+        let branchTeach = 'CSE';        // ← This was undefined
+        let showToast_enabled = true;
+
+        // ========== END CONFIGURATION ==========
 
 
         // ========== SUPABASE FUNCTIONS ==========
@@ -7456,9 +7479,49 @@ To import: Use the "Complete Database Import" feature in the Bulk Import tab.`);
 
     
 
-        // ========== MISSING FUNCTION DEFINITIONS ==========
+        // ========== UTILITY FUNCTIONS (ADDED) ==========
 
-        // Modal management
+        // Toast/Notification Function (CRITICAL - was missing)
+        function showToast(message, type = 'info') {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+
+            // Create toast element if it doesn't exist
+            let toastContainer = document.getElementById('toastContainer');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.id = 'toastContainer';
+                toastContainer.style.cssText = 'position:fixed; top:20px; right:20px; z-index:9999;';
+                document.body.appendChild(toastContainer);
+            }
+
+            // Create toast message
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                padding: 15px 20px;
+                margin-bottom: 10px;
+                border-radius: 8px;
+                color: white;
+                font-weight: 500;
+                animation: slideIn 0.3s ease;
+                background-color: ${
+                    type === 'success' ? '#27ae60' :
+                    type === 'error' ? '#e74c3c' :
+                    type === 'warning' ? '#f39c12' :
+                    '#3498db'
+                };
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            `;
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Modal Management Functions
         function openModal(modalId) {
             const modal = document.getElementById(modalId);
             if (modal) {
@@ -7472,9 +7535,7 @@ To import: Use the "Complete Database Import" feature in the Bulk Import tab.`);
             const modal = document.getElementById(modalId);
             if (modal) {
                 modal.style.display = 'none';
-                if (currentModal === modalId) {
-                    currentModal = null;
-                }
+                if (currentModal === modalId) currentModal = null;
                 openedModals[modalId] = false;
             }
         }
@@ -7486,7 +7547,7 @@ To import: Use the "Complete Database Import" feature in the Bulk Import tab.`);
             currentModal = null;
         }
 
-        // Utility functions for button handling
+        // Student Selection Functions
         function selectStudent(studentId) {
             if (!selectedStudentIds.includes(studentId)) {
                 selectedStudentIds.push(studentId);
@@ -7509,39 +7570,165 @@ To import: Use the "Complete Database Import" feature in the Bulk Import tab.`);
             selectedStudentIds = [];
         }
 
-        // Get/Set functions for modal state
-        function getModalState(modalId) {
-            return openedModals[modalId] || false;
+        // IndexedDB Initialization (CRITICAL)
+        function initializeDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('AttendanceDB', 1);
+
+                request.onerror = () => {
+                    console.error('Database failed to open');
+                    reject('Database open failed');
+                };
+
+                request.onsuccess = () => {
+                    db = request.result;
+                    console.log('Database opened successfully');
+
+                    // Initialize empty arrays for all stores
+                    allStudents = [];
+                    allFaculty = [];
+                    allClasses = [];
+                    allAttendance = [];
+
+                    resolve(db);
+                };
+
+                request.onupgradeneeded = (e) => {
+                    db = e.target.result;
+
+                    // Create object stores if they don't exist
+                    const stores = ['students', 'faculty', 'classes', 'attendance', 'years'];
+                    stores.forEach(store => {
+                        if (!db.objectStoreNames.contains(store)) {
+                            db.createObjectStore(store, { keyPath: 'id' });
+                        }
+                    });
+                };
+            });
         }
 
-        function setModalState(modalId, state) {
-            openedModals[modalId] = state;
+        // Data Loading Functions
+        async function getAll(storeName) {
+            return new Promise((resolve, reject) => {
+                if (!db) {
+                    console.log('[LOCAL] DB not initialized, returning empty array');
+                    resolve([]);
+                    return;
+                }
+
+                try {
+                    const transaction = db.transaction([storeName], 'readonly');
+                    const store = transaction.objectStore(storeName);
+                    const request = store.getAll();
+
+                    request.onerror = () => {
+                        console.error(`Error getting ${storeName}:`, request.error);
+                        resolve([]);
+                    };
+
+                    request.onsuccess = () => {
+                        const data = request.result || [];
+                        console.log(`[LOCAL] GET on ${storeName}: ${data.length} records`);
+                        resolve(data);
+                    };
+                } catch (error) {
+                    console.error(`Error in getAll(${storeName}):`, error);
+                    resolve([]);
+                }
+            });
         }
 
-        // ========== DISABLE BACKEND API CALLS ==========
-        // The backend API (405 errors) is replaced with IndexedDB
+        async function addRecord(storeName, record) {
+            return new Promise((resolve, reject) => {
+                if (!db) {
+                    console.log('[LOCAL] DB not initialized, cannot add record');
+                    resolve(record);
+                    return;
+                }
 
-        async function callBackendAPI(method, table, data = null) {
-            // DISABLED: Backend API returns 405 errors
-            // Now using IndexedDB instead
-            console.log(`[LOCAL] ${method} on ${table}`, data);
+                try {
+                    const transaction = db.transaction([storeName], 'readwrite');
+                    const store = transaction.objectStore(storeName);
+                    const request = store.add(record);
 
-            // Return dummy success for now - actual operations use IndexedDB
-            return { success: true, data: [] };
+                    request.onerror = () => {
+                        console.error(`Error adding to ${storeName}:`, request.error);
+                        reject(request.error);
+                    };
+
+                    request.onsuccess = () => {
+                        console.log(`Added to ${storeName}:`, record);
+                        resolve(record);
+                    };
+                } catch (error) {
+                    console.error(`Error in addRecord(${storeName}):`, error);
+                    reject(error);
+                }
+            });
         }
 
-        // Override any other API calls with local storage equivalents
-        async function loadFromBackendAPI(table) {
+        async function updateRecord(storeName, record) {
+            return new Promise((resolve, reject) => {
+                if (!db) {
+                    console.log('[LOCAL] DB not initialized');
+                    resolve(record);
+                    return;
+                }
+
+                try {
+                    const transaction = db.transaction([storeName], 'readwrite');
+                    const store = transaction.objectStore(storeName);
+                    const request = store.put(record);
+
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => resolve(record);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+
+        // Load all data into memory
+        async function loadAllData() {
             try {
-                // Try to load from IndexedDB instead
-                return await getAll(table);
+                allStudents = await getAll('students') || [];
+                allFaculty = await getAll('faculty') || [];
+                allClasses = await getAll('classes') || [];
+                allAttendance = await getAll('attendance') || [];
+
+                console.log(`Loaded ${allStudents.length} students, ${allFaculty.length} faculty, ${allClasses.length} classes`);
+                return true;
             } catch (error) {
-                console.log(`Loading from IndexedDB: ${table}`, error);
-                return [];
+                console.error('Error loading data:', error);
+                // Initialize as empty arrays even if loading fails
+                allStudents = [];
+                allFaculty = [];
+                allClasses = [];
+                allAttendance = [];
+                return false;
             }
         }
 
-        // ========== END MISSING FUNCTIONS ==========
+        // Disable broken backend API calls
+        async function callBackendAPI(method, table, data = null) {
+            console.log(`[LOCAL] ${method} on ${table}`, data);
+            return { success: true, data: [] };
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', async () => {
+            console.log('Initializing Attendance System...');
+            try {
+                await initializeDatabase();
+                await loadAllData();
+                console.log('System initialized successfully');
+            } catch (error) {
+                console.error('Initialization error:', error);
+                // Continue anyway - will use empty arrays
+            }
+        });
+
+        // ========== END UTILITY FUNCTIONS ==========
 </script>
 </body>
 
