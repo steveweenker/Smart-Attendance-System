@@ -2685,226 +2685,29 @@
 
 
         // ========== CONFIGURATION ==========
-        const SUPABASE_URL = 'https://dqsyfbhvbdtzteapjexq.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxc3lmYmh2YmR0enRlYXBqZXhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU0NzY1MTYsImV4cCI6MjA4MTA1MjUxNn0.D3zaLWSVdntksUu8b4KEmkS6fI6Z15101CFGB6ECDJs';
-        const ADMIN_PASSWORD = 'GecKaimur@148';
-        let currentUser = null;
 
-        // Branch Mapping
-        const branchMap = {
-            '101': 'Civil',
-            '102': 'Mechanical',
-            '103': 'Electrical',
-            '104': 'ECE',
-            '152': 'CSE(Cyber Security)',
-            '156': 'CSE(Networks)'
-        };
-
-        // Filter variables
-        let activeStudentFilter = { year: 'all', semester: null, branch: 'all' };
-        let activeClassFilter = { year: 'all', semester: null };
-        let selectedStudentIds = new Set();
-        let displayedStudents = [];
 
         // ========== SUPABASE FUNCTIONS ==========
 
         // Add record to Supabase
-        async function addRecord(table, data) {
-            try {
-                // Add timestamp if not present
-                if (!data.created_at) {
-                    data.created_at = new Date().toISOString();
-                }
 
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-                    method: 'POST',
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=representation'
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                if (!response.ok) {
-                    const error = await response.text();
-                    console.error(`Supabase add error for table ${table}:`, error);
-                    throw new Error(`Failed to add to ${table}: ${response.status}`);
-                }
-
-                const result = await response.json();
-                return result[0];
-            } catch (error) {
-                console.error('Supabase add error:', error);
-                showToast(`Error adding record to ${table}`, 'error');
-                throw error;
-            }
-        }
 
         // Update record in Supabase
-        async function updateRecord(table, data) {
-            try {
-                if (!data.id) {
-                    throw new Error('ID is required for update');
-                }
 
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${data.id}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=representation'
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Failed to update: ${response.status}`);
-                }
-
-                const result = await response.json();
-                return result[0];
-            } catch (error) {
-                console.error('Supabase update error:', error);
-                showToast(`Error updating record in ${table}`, 'error');
-                throw error;
-            }
-        }
 
         // Get all records from Supabase
-        async function getAll(table) {
-            try {
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*`, {
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
 
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch from ${table}: ${response.status}`);
-                }
-
-                const data = await response.json();
-                console.log(`Loaded ${data.length} records from ${table}`);
-                return data;
-            } catch (error) {
-                console.error(`Supabase get all error for ${table}:`, error);
-                showToast(`Error loading data from ${table}`, 'error');
-                return [];
-            }
-        }
 
         // Get single record from Supabase
-        async function getRecord(table, id) {
-            try {
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
 
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch record: ${response.status}`);
-                }
-
-                const result = await response.json();
-                return result[0] || null;
-            } catch (error) {
-                console.error('Supabase getRecord error:', error);
-                showToast('Error loading record', 'error');
-                return null;
-            }
-        }
 
         // Delete record from Supabase
-        async function deleteRecord(table, id) {
-            try {
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`
-                    }
-                });
 
-                if (!response.ok) {
-                    throw new Error(`Failed to delete: ${response.status}`);
-                }
-
-                return true;
-            } catch (error) {
-                console.error('Supabase delete error:', error);
-                showToast('Error deleting record', 'error');
-                throw error;
-            }
-        }
 
         // Clear all records from a table in Supabase
-        async function clearStore(table) {
-            try {
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`
-                    }
-                });
 
-                return response.ok;
-            } catch (error) {
-                console.error('Supabase clear error:', error);
-                showToast('Error clearing data', 'error');
-                throw error;
-            }
-        }
         // Add this function to test Supabase connection
-        async function testSupabaseConnection() {
-            try {
-                console.log('Testing Supabase connection...');
 
-                // Test each table
-                const tables = ['students', 'faculty', 'classes', 'attendance', 'years', 'settings'];
-
-                for (const table of tables) {
-                    try {
-                        const data = await getAll(table);
-                        console.log(`Table ${table}: ${data.length} records`);
-                    } catch (error) {
-                        console.error(`Error accessing ${table}:`, error.message);
-                    }
-                }
-
-                // Test adding a test record
-                const testRecord = {
-                    roll_no: 'TEST001',
-                    first_name: 'Test',
-                    last_name: 'Student',
-                    email: 'test@example.com',
-                    department: 'Computer Science',
-                    year: 1,
-                    semester: 1
-                };
-
-                const added = await addRecord('students', testRecord);
-                console.log('Test add successful:', added);
-
-                if (added && added.id) {
-                    await deleteRecord('students', added.id);
-                    console.log('Test cleanup successful');
-                }
-
-                showToast('Supabase connection test completed', 'success');
-            } catch (error) {
-                console.error('Supabase connection test failed:', error);
-                showToast(`Connection test failed: ${error.message}`, 'error');
-            }
-        }
 
         // Call this function after login to test
         // Add to your completeLogin function:
@@ -7532,6 +7335,114 @@ To import: Use the "Complete Database Import" feature in the Bulk Import tab.`);
                 await updateClassFilterDropdown(semesterFilter, branchFilter);
             });
         })();
+
+        /**
+ * Call backend API for database operations
+ * @param {'GET'|'ADD'|'UPDATE'|'DELETE'} action
+ * @param {string} table
+ * @param {object|null} data
+ * @param {number|null} id
+ */
+        async function callBackendAPI(action, table, data = null, id = null) {
+            try {
+                const requestBody = { action, table };
+                if (data !== null) requestBody.data = data;
+                if (id !== null) requestBody.id = id;
+
+                console.log(`[API CALL] ${action} ${table}`, requestBody);
+
+                const response = await fetch('/api/db', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    // try to parse JSON error body if present
+                    let errorData = null;
+                    try { errorData = await response.json(); } catch (e) { }
+                    console.error(`API Error (${response.status}):`, errorData || response.statusText);
+                    throw new Error((errorData && errorData.error) || `API Error: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log(`[API SUCCESS] ${action} completed`, result);
+                return result.data ?? result;
+            } catch (error) {
+                console.error(`[API FAILED] ${action} on ${table}:`, error);
+                if (typeof showToast === 'function') showToast(`Error: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        async function addRecord(table, data) {
+            try {
+                if (!data.created_at) data.created_at = new Date().toISOString();
+                const result = await callBackendAPI('ADD', table, data);
+                if (typeof showToast === 'function') showToast(`Added to ${table} successfully!`, 'success');
+                return result;
+            } catch (error) {
+                console.error(`Error adding to ${table}:`, error);
+                throw error;
+            }
+        }
+
+        async function updateRecord(table, data) {
+            try {
+                const result = await callBackendAPI('UPDATE', table, data);
+                if (typeof showToast === 'function') showToast(`Updated ${table} successfully!`, 'success');
+                return result;
+            } catch (error) {
+                console.error(`Error updating ${table}:`, error);
+                throw error;
+            }
+        }
+
+        async function getAll(table) {
+            try {
+                const result = await callBackendAPI('GET', table);
+                console.log(`Loaded ${Array.isArray(result) ? result.length : 0} records from ${table}`);
+                return result || [];
+            } catch (error) {
+                console.error(`Error getting all from ${table}:`, error);
+                return [];
+            }
+        }
+
+        async function getRecord(table, id) {
+            try {
+                const allRecords = await getAll(table);
+                const record = allRecords.find(r => r && r.id === id);
+                return record || null;
+            } catch (error) {
+                console.error(`Error getting record from ${table}:`, error);
+                return null;
+            }
+        }
+
+        async function deleteRecord(table, id) {
+            try {
+                await callBackendAPI('DELETE', table, null, id);
+                if (typeof showToast === 'function') showToast(`Deleted from ${table} successfully!`, 'success');
+                return true;
+            } catch (error) {
+                console.error(`Error deleting from ${table}:`, error);
+                throw error;
+            }
+        }
+
+        /* Convenience wrappers (consistent naming) */
+        async function getAllStudents() { return await getAll('students'); }
+        async function getAllFaculty() { return await getAll('faculty'); }
+        async function getAllClasses() { return await getAll('classes'); }
+        async function getAllAttendance() { return await getAll('attendance'); }
+        async function getAllYears() { return await getAll('years'); }
+
+        function initDB() {
+            console.log('✅ Backend API initialized - IndexedDB not needed');
+            return Promise.resolve(true);
+        }
+
     </script>
 </body>
 
