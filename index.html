@@ -5,6 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Attendance System</title>
+
+    <!-- Supabase Library -->
+     
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
     <!-- Optional: JSZip for ZIP export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -1099,6 +1106,28 @@
             display: block;
         }
     </style>
+
+    <script>
+        // ==========================================
+        // SUPABASE CONFIGURATION - CUSTOMIZE THIS
+        // ==========================================
+        
+
+        // Initialize Supabase on page load
+        function initSupabase() {
+            try {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('✅ Supabase connected');
+                loadAllData();
+            } catch (err) {
+                console.error('❌ Supabase init error:', err);
+                showAlert('⚠️ Configure Supabase credentials in the script', 'warning');
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', initSupabase);
+    </script>
 </head>
 
 <body>
@@ -2613,6 +2642,13 @@
 
     <script>
 
+
+        // Initialize Supabase Client
+        const SUPABASE_URL = 'https://dqsyfbhvbdtzteapjexq.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxc3lmYmh2YmR0enRlYXBqZXhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU0NzY1MTYsImV4cCI6MjA4MTA1MjUxNn0.D3zaLWSVdntksUu8b4KEmkS6fI6Z15101CFGB6ECDJs';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         // Add this utility function to convert Unicode to ASCII for CSV
         function toAsciiText(text) {
             if (!text) return '';
@@ -2684,59 +2720,18 @@
         }
 
 
-        
-        // ========== ULTIMATE CONFIGURATION ==========
 
-        // Global database reference
-        let db = null;
-
-        // User state
+        // Global variables initialization
+        let db; // IndexedDB database
         let currentUser = null;
-        let ADMIN_PASSWORD = 'admin123';
-
-        // Filter states
-        let activeStudentFilter = 'all';
-        let activeYear = new Date().getFullYear();
-        let activeMonthFilter = null;
-        let activeTeacherFilter = null;
-
-        // Pagination
+        let ADMIN_PASSWORD = 'admin123'; // ⚠️ CHANGE THIS TO A SECURE PASSWORD
+        let activeStudentFilter = 'all'; // Filter state for students
+        let activeYear = new Date().getFullYear(); // Current academic year
         let currentPage = 1;
         const itemsPerPage = 10;
-
-        // Modal states
-        let selectedStudentIds = [];
-        let currentModal = null;
-        let openedModals = {};
-
-        // Data arrays (MUST be initialized as arrays)
-        let allStudents = [];           // Student records
-        let allFaculty = [];            // Faculty records
-        let allClasses = [];            // Class records
-        let allAttendance = [];         // Attendance records
-
-        // UI State variables
-        let branchTeach = 'CSE';        // Current branch
-        let showToast_enabled = true;
-
-        // Branch mapping for auto-fill
-        let branchMap = {
-            'CSE': 'Computer Science & Engineering',
-            'CSE(Cyber Security)': 'CSE - Cyber Security',
-            'CSE(Networks)': 'CSE - Networks',
-            'IT': 'Information Technology',
-            'ECE': 'Electronics & Communication',
-            'ME': 'Mechanical Engineering',
-            'CE': 'Civil Engineering',
-            'EEE': 'Electrical & Electronics',
-            'BT': 'Biotechnology',
-            'EE': 'Electrical Engineering'
-        };
-
-        // Auto-increment ID counter for records
-        let recordIdCounter = 1;
-
-        // ========== END ULTIMATE CONFIGURATION ==========
+        let selectedStudentIds = []; // Track selected students for bulk operations
+        let currentModal = null; // Track currently open modal
+        let openedModals = {}; // Store modal states
 
 
         // ========== SUPABASE FUNCTIONS ==========
@@ -7495,66 +7490,17 @@ To import: Use the "Complete Database Import" feature in the Bulk Import tab.`);
             return Promise.resolve(true);
         }
 
-    
 
-        // ========== UTILITY & HELPER FUNCTIONS ==========
 
-        // Generate unique ID for records
-        function generateUniqueID() {
-            recordIdCounter++;
-            return recordIdCounter;
-        }
+        // ========== MISSING FUNCTION DEFINITIONS ==========
 
-        // Toast/Notification Function
-        function showToast(message, type = 'info') {
-            console.log(`[${type.toUpperCase()}] ${message}`);
-
-            try {
-                let toastContainer = document.getElementById('toastContainer');
-                if (!toastContainer) {
-                    toastContainer = document.createElement('div');
-                    toastContainer.id = 'toastContainer';
-                    toastContainer.style.cssText = 'position:fixed; top:20px; right:20px; z-index:9999;';
-                    document.body.appendChild(toastContainer);
-                }
-
-                const toast = document.createElement('div');
-                toast.style.cssText = `
-                    padding: 15px 20px;
-                    margin-bottom: 10px;
-                    border-radius: 8px;
-                    color: white;
-                    font-weight: 500;
-                    animation: slideIn 0.3s ease;
-                    background-color: ${
-                        type === 'success' ? '#27ae60' :
-                        type === 'error' ? '#e74c3c' :
-                        type === 'warning' ? '#f39c12' :
-                        '#3498db'
-                    };
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                `;
-                toast.textContent = message;
-                toastContainer.appendChild(toast);
-
-                setTimeout(() => {
-                    toast.style.animation = 'slideOut 0.3s ease';
-                    setTimeout(() => toast.remove(), 300);
-                }, 3000);
-            } catch (error) {
-                console.log(`[Toast Error] ${error.message}`);
-            }
-        }
-
-        // Modal Management Functions
+        // Modal management
         function openModal(modalId) {
             const modal = document.getElementById(modalId);
             if (modal) {
                 modal.style.display = 'block';
                 currentModal = modalId;
                 openedModals[modalId] = true;
-            } else {
-                console.warn(`Modal not found: ${modalId}`);
             }
         }
 
@@ -7562,7 +7508,9 @@ To import: Use the "Complete Database Import" feature in the Bulk Import tab.`);
             const modal = document.getElementById(modalId);
             if (modal) {
                 modal.style.display = 'none';
-                if (currentModal === modalId) currentModal = null;
+                if (currentModal === modalId) {
+                    currentModal = null;
+                }
                 openedModals[modalId] = false;
             }
         }
@@ -7574,7 +7522,7 @@ To import: Use the "Complete Database Import" feature in the Bulk Import tab.`);
             currentModal = null;
         }
 
-        // Student Selection Functions
+        // Utility functions for button handling
         function selectStudent(studentId) {
             if (!selectedStudentIds.includes(studentId)) {
                 selectedStudentIds.push(studentId);
@@ -7597,255 +7545,589 @@ To import: Use the "Complete Database Import" feature in the Bulk Import tab.`);
             selectedStudentIds = [];
         }
 
-        // Date Range Toggle (CRITICAL FIX)
-        function toggleDateRange(button) {
-            if (button) {
-                button.classList.toggle('active');
-
-                // Get the associated date range inputs
-                const dateRangeStart = button.parentElement?.querySelector('[data-date-start]');
-                const dateRangeEnd = button.parentElement?.querySelector('[data-date-end]');
-
-                if (dateRangeStart && dateRangeEnd) {
-                    const isActive = button.classList.contains('active');
-                    dateRangeStart.disabled = !isActive;
-                    dateRangeEnd.disabled = !isActive;
-                }
-            }
+        // Get/Set functions for modal state
+        function getModalState(modalId) {
+            return openedModals[modalId] || false;
         }
 
-        // Branch auto-fill function (CRITICAL FIX)
-        function autoFillStudentDetails(branchCode) {
-            try {
-                const branchName = branchMap[branchCode] || branchCode;
-
-                // Set the branch field if it exists
-                const branchField = document.querySelector('[name="branch"]');
-                if (branchField) {
-                    branchField.value = branchName;
-                }
-
-                return branchName;
-            } catch (error) {
-                console.error('Error in autoFillStudentDetails:', error);
-                return branchCode;
-            }
+        function setModalState(modalId, state) {
+            openedModals[modalId] = state;
         }
 
-        // IndexedDB Initialization
-        function initializeDatabase() {
-            return new Promise((resolve, reject) => {
-                try {
-                    const request = indexedDB.open('AttendanceDB', 1);
+        // ========== DISABLE BACKEND API CALLS ==========
+        // The backend API (405 errors) is replaced with IndexedDB
 
-                    request.onerror = () => {
-                        console.error('Database failed to open');
-                        reject('Database open failed');
-                    };
-
-                    request.onsuccess = () => {
-                        db = request.result;
-                        console.log('Database opened successfully');
-                        resolve(db);
-                    };
-
-                    request.onupgradeneeded = (e) => {
-                        db = e.target.result;
-
-                        const stores = ['students', 'faculty', 'classes', 'attendance', 'years'];
-                        stores.forEach(store => {
-                            if (!db.objectStoreNames.contains(store)) {
-                                db.createObjectStore(store, { keyPath: 'id' });
-                                console.log(`Created store: ${store}`);
-                            }
-                        });
-                    };
-                } catch (error) {
-                    console.error('Database initialization error:', error);
-                    reject(error);
-                }
-            });
-        }
-
-        // CSV conversion function (CRITICAL FIX - Convert arrays to objects with ID)
-        function convertCSVRowToObject(row, index) {
-            try {
-                // Generate unique ID
-                const id = generateUniqueID();
-
-                // Map CSV columns to object properties
-                const record = {
-                    id: id,  // ← CRITICAL: Must have ID field!
-                    rollNo: String(row[0] || '').trim(),
-                    firstName: String(row[1] || '').trim(),
-                    lastName: String(row[2] || '').trim(),
-                    email: String(row[3] || '').trim(),
-                    branch: String(row[4] || '').trim(),
-                    year: parseInt(row[5]) || 1,
-                    semester: parseInt(row[6]) || 1,
-                    dateAdded: row[7] ? new Date(row[7]) : new Date(),
-                    phone: String(row[8] || '').trim(),
-                    address: String(row[9] || '').trim(),
-                    guardianName: String(row[10] || '').trim(),
-                    guardianPhone: String(row[11] || '').trim(),
-                    status: 'active'
-                };
-
-                return record;
-            } catch (error) {
-                console.error('Error converting CSV row:', error, row);
-                return null;
-            }
-        }
-
-        // Data Loading Functions
-        async function getAll(storeName) {
-            return new Promise((resolve, reject) => {
-                if (!db) {
-                    console.log('[LOCAL] DB not initialized, returning empty array');
-                    resolve([]);
-                    return;
-                }
-
-                try {
-                    const transaction = db.transaction([storeName], 'readonly');
-                    const store = transaction.objectStore(storeName);
-                    const request = store.getAll();
-
-                    request.onerror = () => {
-                        console.error(`Error getting ${storeName}:`, request.error);
-                        resolve([]);
-                    };
-
-                    request.onsuccess = () => {
-                        const data = request.result || [];
-                        console.log(`[LOCAL] GET on ${storeName}: ${data.length} records`);
-                        resolve(data);
-                    };
-                } catch (error) {
-                    console.error(`Error in getAll(${storeName}):`, error);
-                    resolve([]);
-                }
-            });
-        }
-
-        async function addRecord(storeName, record) {
-            return new Promise((resolve, reject) => {
-                if (!db) {
-                    console.log('[LOCAL] DB not initialized, cannot add record');
-                    resolve(record);
-                    return;
-                }
-
-                // Validate record has ID (CRITICAL!)
-                if (!record.id) {
-                    console.error(`Record missing ID field for ${storeName}:`, record);
-                    reject(new Error(`Record must have 'id' field`));
-                    return;
-                }
-
-                try {
-                    const transaction = db.transaction([storeName], 'readwrite');
-                    const store = transaction.objectStore(storeName);
-                    const request = store.add(record);
-
-                    request.onerror = () => {
-                        console.error(`Error adding to ${storeName}:`, request.error);
-                        reject(request.error);
-                    };
-
-                    request.onsuccess = () => {
-                        console.log(`Added to ${storeName}:`, record);
-                        resolve(record);
-                    };
-                } catch (error) {
-                    console.error(`Error in addRecord(${storeName}):`, error);
-                    reject(error);
-                }
-            });
-        }
-
-        async function updateRecord(storeName, record) {
-            return new Promise((resolve, reject) => {
-                if (!db) {
-                    console.log('[LOCAL] DB not initialized');
-                    resolve(record);
-                    return;
-                }
-
-                try {
-                    const transaction = db.transaction([storeName], 'readwrite');
-                    const store = transaction.objectStore(storeName);
-                    const request = store.put(record);
-
-                    request.onerror = () => reject(request.error);
-                    request.onsuccess = () => resolve(record);
-                } catch (error) {
-                    reject(error);
-                }
-            });
-        }
-
-        async function deleteRecord(storeName, id) {
-            return new Promise((resolve, reject) => {
-                if (!db) {
-                    resolve();
-                    return;
-                }
-
-                try {
-                    const transaction = db.transaction([storeName], 'readwrite');
-                    const store = transaction.objectStore(storeName);
-                    const request = store.delete(id);
-
-                    request.onerror = () => reject(request.error);
-                    request.onsuccess = () => resolve();
-                } catch (error) {
-                    reject(error);
-                }
-            });
-        }
-
-        // Load all data into memory
-        async function loadAllData() {
-            try {
-                allStudents = await getAll('students') || [];
-                allFaculty = await getAll('faculty') || [];
-                allClasses = await getAll('classes') || [];
-                allAttendance = await getAll('attendance') || [];
-
-                console.log(`Loaded ${allStudents.length} students, ${allFaculty.length} faculty, ${allClasses.length} classes`);
-                return true;
-            } catch (error) {
-                console.error('Error loading data:', error);
-                allStudents = [];
-                allFaculty = [];
-                allClasses = [];
-                allAttendance = [];
-                return false;
-            }
-        }
-
-        // Disable broken backend API calls
         async function callBackendAPI(method, table, data = null) {
+            // DISABLED: Backend API returns 405 errors
+            // Now using IndexedDB instead
             console.log(`[LOCAL] ${method} on ${table}`, data);
+
+            // Return dummy success for now - actual operations use IndexedDB
             return { success: true, data: [] };
         }
 
-        // Initialize on page load
-        window.addEventListener('DOMContentLoaded', async () => {
-            console.log('Initializing Attendance System...');
+        // Override any other API calls with local storage equivalents
+        async function loadFromBackendAPI(table) {
             try {
-                await initializeDatabase();
-                await loadAllData();
-                console.log('System initialized successfully');
+                // Try to load from IndexedDB instead
+                return await getAll(table);
             } catch (error) {
-                console.error('Initialization error:', error);
+                console.log(`Loading from IndexedDB: ${table}`, error);
+                return [];
             }
-        });
+        }
 
-        // ========== END UTILITY FUNCTIONS ==========
-</script>
+        // ========== END MISSING FUNCTIONS ==========
+    </script>
+
+    <!-- ==========================================
+         SUPABASE INTEGRATION SCRIPT
+         All CRUD operations and utilities
+         ========================================== -->
+    <script>
+        // ==========================================
+        // STUDENTS MANAGEMENT
+        // ==========================================
+        async function loadAllStudents() {
+            if (!supabase) return showAlert('Supabase not initialized', 'error');
+            try {
+                const { data, error } = await supabase
+                    .from('students')
+                    .select('*')
+                    .order('roll_no', { ascending: true });
+
+                if (error) throw error;
+                populateStudentTable(data || []);
+                updateStudentStats(data || []);
+            } catch (err) {
+                console.error('Error loading students:', err);
+                showAlert('Error loading students: ' + err.message, 'error');
+            }
+        }
+
+        function populateStudentTable(students) {
+            const tbody = document.querySelector('table tbody') || createStudentTable();
+            tbody.innerHTML = students.map(s => `
+                <tr>
+                    <td>${s.roll_no}</td>
+                    <td>${s.name}</td>
+                    <td>${s.department}</td>
+                    <td>${s.year}</td>
+                    <td>${s.semester}</td>
+                    <td>
+                        <button onclick="editStudent('${s.id}')" class="btn-sm">✏️</button>
+                        <button onclick="deleteStudent('${s.id}')" class="btn-sm">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function addStudent(e) {
+            if (e) e.preventDefault();
+            if (!supabase) return showAlert('Supabase not initialized', 'error');
+
+            const form = document.querySelector('#addStudentForm') || {};
+            const studentData = {
+                roll_no: document.getElementById('rollNo')?.value || '',
+                name: document.getElementById('studentName')?.value || '',
+                email: document.getElementById('studentEmail')?.value || '',
+                phone: document.getElementById('studentPhone')?.value || '',
+                department: document.getElementById('studentDept')?.value || '',
+                year: parseInt(document.getElementById('studentYear')?.value || 1),
+                semester: parseInt(document.getElementById('studentSem')?.value || 1)
+            };
+
+            if (!studentData.roll_no || !studentData.name) {
+                return showAlert('Roll No and Name are required', 'warning');
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from('students')
+                    .insert([studentData])
+                    .select();
+
+                if (error) throw error;
+
+                showAlert('✅ Student added successfully!', 'success');
+                if (form.reset) form.reset();
+                loadAllStudents();
+            } catch (err) {
+                console.error('Error adding student:', err);
+                showAlert('Error: ' + err.message, 'error');
+            }
+        }
+
+        async function deleteStudent(studentId) {
+            if (!supabase) return showAlert('Supabase not initialized', 'error');
+            if (!confirm('Are you sure you want to delete this student?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('students')
+                    .delete()
+                    .eq('id', studentId);
+
+                if (error) throw error;
+
+                showAlert('✅ Student deleted successfully!', 'success');
+                loadAllStudents();
+            } catch (err) {
+                console.error('Error deleting student:', err);
+                showAlert('Error: ' + err.message, 'error');
+            }
+        }
+
+        // ==========================================
+        // FACULTY MANAGEMENT
+        // ==========================================
+        async function loadAllFaculty() {
+            if (!supabase) return;
+            try {
+                const { data, error } = await supabase
+                    .from('faculty')
+                    .select('*')
+                    .order('name', { ascending: true });
+
+                if (error) throw error;
+                populateFacultyTable(data || []);
+            } catch (err) {
+                console.error('Error loading faculty:', err);
+            }
+        }
+
+        function populateFacultyTable(faculty) {
+            const tbody = document.querySelector('table[data-table="faculty"] tbody');
+            if (!tbody) return;
+
+            tbody.innerHTML = faculty.map(f => `
+                <tr>
+                    <td>${f.faculty_id}</td>
+                    <td>${f.name}</td>
+                    <td>${f.department}</td>
+                    <td>${f.specialization || '-'}</td>
+                    <td>
+                        <button onclick="deleteFaculty('${f.id}')" class="btn-sm">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function addFaculty(e) {
+            if (e) e.preventDefault();
+            if (!supabase) return showAlert('Supabase not initialized', 'error');
+
+            const facultyData = {
+                faculty_id: document.getElementById('facultyId')?.value || '',
+                name: document.getElementById('facultyName')?.value || '',
+                email: document.getElementById('facultyEmail')?.value || '',
+                phone: document.getElementById('facultyPhone')?.value || '',
+                department: document.getElementById('facultyDept')?.value || '',
+                specialization: document.getElementById('facultySpecialization')?.value || ''
+            };
+
+            if (!facultyData.faculty_id || !facultyData.name) {
+                return showAlert('Faculty ID and Name are required', 'warning');
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from('faculty')
+                    .insert([facultyData])
+                    .select();
+
+                if (error) throw error;
+
+                showAlert('✅ Faculty added successfully!', 'success');
+                loadAllFaculty();
+            } catch (err) {
+                console.error('Error adding faculty:', err);
+                showAlert('Error: ' + err.message, 'error');
+            }
+        }
+
+        async function deleteFaculty(facultyId) {
+            if (!supabase) return;
+            if (!confirm('Delete this faculty member?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('faculty')
+                    .delete()
+                    .eq('id', facultyId);
+
+                if (error) throw error;
+                showAlert('✅ Faculty deleted!', 'success');
+                loadAllFaculty();
+            } catch (err) {
+                showAlert('Error: ' + err.message, 'error');
+            }
+        }
+
+        // ==========================================
+        // CLASSES MANAGEMENT
+        // ==========================================
+        async function loadAllClasses() {
+            if (!supabase) return;
+            try {
+                const { data, error } = await supabase
+                    .from('classes')
+                    .select('*')
+                    .order('class_code', { ascending: true });
+
+                if (error) throw error;
+                populateClassTable(data || []);
+            } catch (err) {
+                console.error('Error loading classes:', err);
+            }
+        }
+
+        function populateClassTable(classes) {
+            const tbody = document.querySelector('table[data-table="classes"] tbody');
+            if (!tbody) return;
+
+            tbody.innerHTML = classes.map(c => `
+                <tr>
+                    <td>${c.class_code}</td>
+                    <td>${c.course_name}</td>
+                    <td>${c.department}</td>
+                    <td>${c.semester}</td>
+                    <td>${c.year}</td>
+                    <td>${c.credits || '-'}</td>
+                    <td>
+                        <button onclick="deleteClass('${c.id}')" class="btn-sm">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function addClass(e) {
+            if (e) e.preventDefault();
+            if (!supabase) return showAlert('Supabase not initialized', 'error');
+
+            const classData = {
+                class_code: document.getElementById('classCode')?.value || '',
+                course_name: document.getElementById('courseName')?.value || '',
+                department: document.getElementById('classDept')?.value || '',
+                semester: parseInt(document.getElementById('classSem')?.value || 1),
+                year: parseInt(document.getElementById('classYear')?.value || 1),
+                credits: parseInt(document.getElementById('classCredits')?.value || 3)
+            };
+
+            if (!classData.class_code || !classData.course_name) {
+                return showAlert('Class Code and Course Name are required', 'warning');
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from('classes')
+                    .insert([classData])
+                    .select();
+
+                if (error) throw error;
+
+                showAlert('✅ Class added successfully!', 'success');
+                loadAllClasses();
+            } catch (err) {
+                console.error('Error adding class:', err);
+                showAlert('Error: ' + err.message, 'error');
+            }
+        }
+
+        async function deleteClass(classId) {
+            if (!supabase) return;
+            if (!confirm('Delete this class?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('classes')
+                    .delete()
+                    .eq('id', classId);
+
+                if (error) throw error;
+                showAlert('✅ Class deleted!', 'success');
+                loadAllClasses();
+            } catch (err) {
+                showAlert('Error: ' + err.message, 'error');
+            }
+        }
+
+        // ==========================================
+        // ATTENDANCE MANAGEMENT
+        // ==========================================
+        async function loadClassesForAttendance() {
+            if (!supabase) return;
+            try {
+                const { data, error } = await supabase
+                    .from('classes')
+                    .select('*')
+                    .order('class_code', { ascending: true });
+
+                if (error) throw error;
+
+                const select = document.getElementById('classSelect');
+                if (select) {
+                    select.innerHTML = '<option value="">Select Class</option>' +
+                        (data || []).map(c => `<option value="${c.id}">${c.class_code} - ${c.course_name}</option>`).join('');
+                }
+            } catch (err) {
+                console.error('Error loading classes:', err);
+            }
+        }
+
+        async function loadStudentsForAttendance() {
+            if (!supabase) return;
+            try {
+                const { data, error } = await supabase
+                    .from('students')
+                    .select('*')
+                    .order('roll_no', { ascending: true });
+
+                if (error) throw error;
+
+                const tbody = document.getElementById('attendanceBody');
+                if (tbody) {
+                    tbody.innerHTML = (data || []).map(s => `
+                        <tr>
+                            <td>${s.roll_no}</td>
+                            <td>${s.name}</td>
+                            <td>
+                                <select data-student-id="${s.id}" class="attendance-status">
+                                    <option value="">Select</option>
+                                    <option value="present">Present</option>
+                                    <option value="absent">Absent</option>
+                                    <option value="leave">Leave</option>
+                                </select>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) {
+                console.error('Error loading students:', err);
+            }
+        }
+
+        async function saveAttendance() {
+            if (!supabase) return showAlert('Supabase not initialized', 'error');
+
+            const classId = document.getElementById('classSelect')?.value;
+            const date = document.getElementById('attendanceDate')?.value;
+
+            if (!classId || !date) {
+                return showAlert('Please select class and date', 'warning');
+            }
+
+            try {
+                const records = [];
+                document.querySelectorAll('.attendance-status').forEach(select => {
+                    const status = select.value;
+                    if (status) {
+                        records.push({
+                            student_id: select.dataset.studentId,
+                            class_id: classId,
+                            date: date,
+                            status: status
+                        });
+                    }
+                });
+
+                if (records.length === 0) {
+                    return showAlert('Select at least one student', 'warning');
+                }
+
+                const { error } = await supabase
+                    .from('attendance')
+                    .upsert(records, { onConflict: 'student_id,class_id,date' });
+
+                if (error) throw error;
+
+                showAlert('✅ Attendance saved successfully!', 'success');
+            } catch (err) {
+                console.error('Error saving attendance:', err);
+                showAlert('Error: ' + err.message, 'error');
+            }
+        }
+
+        // ==========================================
+        // CSV IMPORT/EXPORT
+        // ==========================================
+        async function handleCSVImport(type) {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.csv';
+
+            fileInput.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const csv = event.target.result;
+                        const lines = csv.split('\n');
+                        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+
+                        const records = lines.slice(1)
+                            .filter(line => line.trim())
+                            .map(line => {
+                                const values = line.split(',').map(v => v.trim());
+
+                                if (type === 'students') {
+                                    return {
+                                        roll_no: values[headers.indexOf('roll_no')] || values[0],
+                                        name: values[headers.indexOf('name')] || values[1],
+                                        email: values[headers.indexOf('email')] || values[2],
+                                        phone: values[headers.indexOf('phone')] || values[3],
+                                        department: values[headers.indexOf('department')] || values[4],
+                                        year: parseInt(values[headers.indexOf('year')] || values[5]) || 1,
+                                        semester: parseInt(values[headers.indexOf('semester')] || values[6]) || 1
+                                    };
+                                } else if (type === 'classes') {
+                                    return {
+                                        class_code: values[0],
+                                        course_name: values[1],
+                                        department: values[2],
+                                        semester: parseInt(values[3]) || 1,
+                                        year: parseInt(values[4]) || 1,
+                                        credits: parseInt(values[5]) || 3
+                                    };
+                                }
+                                return null;
+                            })
+                            .filter(r => r !== null);
+
+                        if (!supabase) throw new Error('Supabase not initialized');
+
+                        const { error } = await supabase
+                            .from(type)
+                            .insert(records);
+
+                        if (error) throw error;
+
+                        showAlert(`✅ Imported ${records.length} ${type}!`, 'success');
+                        loadAllStudents();
+                        loadAllClasses();
+                    } catch (err) {
+                        console.error('Import error:', err);
+                        showAlert('Error: ' + err.message, 'error');
+                    }
+                };
+
+                reader.readAsText(file);
+            };
+
+            fileInput.click();
+        }
+
+        async function exportToCSV(type) {
+            if (!supabase) return showAlert('Supabase not initialized', 'error');
+
+            try {
+                const { data, error } = await supabase
+                    .from(type)
+                    .select('*')
+                    .order('id', { ascending: true });
+
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    return showAlert('No data to export', 'warning');
+                }
+
+                let headers, rows;
+
+                if (type === 'students') {
+                    headers = ['Roll No', 'Name', 'Email', 'Phone', 'Department', 'Year', 'Semester'];
+                    rows = data.map(s => [s.roll_no, s.name, s.email || '', s.phone || '', s.department, s.year, s.semester]);
+                } else if (type === 'classes') {
+                    headers = ['Class Code', 'Course Name', 'Department', 'Semester', 'Year', 'Credits'];
+                    rows = data.map(c => [c.class_code, c.course_name, c.department, c.semester, c.year, c.credits || 3]);
+                }
+
+                const csv = [
+                    headers.join(','),
+                    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+                ].join('\n');
+
+                downloadCSV(csv, `${type}_${new Date().toISOString().split('T')[0]}.csv`);
+                showAlert('✅ Downloaded!', 'success');
+            } catch (err) {
+                console.error('Export error:', err);
+                showAlert('Error: ' + err.message, 'error');
+            }
+        }
+
+        function downloadCSV(content, filename) {
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // ==========================================
+        // DASHBOARD STATS
+        // ==========================================
+        async function updateDashboardStats() {
+            if (!supabase) return;
+
+            try {
+                const { data: students } = await supabase.from('students').select('*', { count: 'exact' });
+                const { data: faculty } = await supabase.from('faculty').select('*', { count: 'exact' });
+                const { data: classes } = await supabase.from('classes').select('*', { count: 'exact' });
+
+                const totalStudentsEl = document.querySelector('[data-stat="students"]');
+                const totalFacultyEl = document.querySelector('[data-stat="faculty"]');
+                const totalClassesEl = document.querySelector('[data-stat="classes"]');
+
+                if (totalStudentsEl) totalStudentsEl.textContent = students?.length || 0;
+                if (totalFacultyEl) totalFacultyEl.textContent = faculty?.length || 0;
+                if (totalClassesEl) totalClassesEl.textContent = classes?.length || 0;
+            } catch (err) {
+                console.error('Error updating stats:', err);
+            }
+        }
+
+        // ==========================================
+        // UTILITY FUNCTIONS
+        // ==========================================
+        function showAlert(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            alertDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                background: ${type === 'success' ? '#27ae60' : type === 'error' ? '#e74c3c' : type === 'warning' ? '#f39c12' : '#3498db'};
+                color: white;
+                border-radius: 5px;
+                z-index: 9999;
+                animation: slideInRight 0.3s ease;
+                max-width: 400px;
+            `;
+            document.body.appendChild(alertDiv);
+
+            setTimeout(() => alertDiv.remove(), 4000);
+        }
+
+        function loadAllData() {
+            updateDashboardStats();
+            loadAllStudents();
+            loadAllFaculty();
+            loadAllClasses();
+            loadClassesForAttendance();
+            loadStudentsForAttendance();
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadAllData, 30000);
+    </script>
 </body>
 
 </html>
