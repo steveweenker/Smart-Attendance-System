@@ -7,7 +7,7 @@
     <title>Advanced Attendance System</title>
 
     <!-- Supabase Library -->
-     
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -1111,7 +1111,7 @@
         // ==========================================
         // SUPABASE CONFIGURATION - CUSTOMIZE THIS
         // ==========================================
-        
+
 
         // Initialize Supabase on page load
         function initSupabase() {
@@ -2642,7 +2642,7 @@
 
     <script>
 
-        
+
         // Initialize Supabase Clients
         const SUPABASE_URL = 'https://dqsyfbhvbdtzteapjexq.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxc3lmYmh2YmR0enRlYXBqZXhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU0NzY1MTYsImV4cCI6MjA4MTA1MjUxNn0.D3zaLWSVdntksUu8b4KEmkS6fI6Z15101CFGB6ECDJs';
@@ -4065,11 +4065,15 @@
 
                         const existing = existingMap.get(studentId);
                         if (existing) {
+                            // update existing row – it already has id
                             record.id = existing.id;
                             promises.push(updateRecord('attendance', record));
                         } else {
-                            promises.push(addRecord('attendance', record));
+                            // NEW row – do NOT set id, let Supabase create it
+                            // and do NOT force any id check inside addRecord
+                            promises.push(addRecord('attendance', record));  // record has no id here
                         }
+
                     });
 
                     try {
